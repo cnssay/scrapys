@@ -30,9 +30,11 @@ class PolarCruises(scrapy.Spider):
         pass
 
     def parse(self, response):
+        '''
+        '''
         elements = response.selector.xpath('.//div[@class="field-items"]/div/a/@href')
 
-        #target =  u'http://www.polarcruises.com/antarctica/ships/luxury-expedition-ships/sea-spirit'
+        #target =  u
         for element in elements:
             detail_url = self.base_url + element.extract()
             #if target != detail_url:
@@ -40,30 +42,64 @@ class PolarCruises(scrapy.Spider):
 
             yield Request( detail_url, self.parse_ship_page)
 
+    def match_price(self, response):
+        price_dict = {}
+
+        tr_elements = response.selector.xpath('.//div[@class="rates-table-wrapper"]//tbody/tr')
+        col_names = response.selector.xpath('.//table/tbody/tr/td/strong/text()').extract()
+
+        for tr in tr_elements:
+            date_raw = tr.xpath('.//td/div[@class="rates-table-date"]/a/text()').extract()[0]
+
+            prices = tr.xpath('.//td[@data-price]/@data-price').extract()
+            if len(prices) > len(col_names):
+                logging.warn("count of price is larger then cols' !")
+                logging.info(prices)
+                logging.info(col_names)
+                price_dict[date_raw] = ''
+                continue
+            prices_info = ''
+            for index in range(len(prices)):
+                prices_info += u"%s = %s \u000a" % (col_names[index], prices[index])
+
+            price_dict[date_raw] = prices_info
+        return price_dict
+
     def parse_ship_page(self, response):
+        '''
+        @url http://www.polarcruises.com/antarctica/ships/luxury-expedition-ships/national-geographic-explorer
+        @returns items 0 0
+        '''
         elements = response.selector.xpath('.//div[@id="ship-tours-box-wrapper"]/div/div/div/a')
+
+        ship_type = response.selector.xpath('.//div[@class="breadcrumb"]/a/text()').extract()[2]
+
+        price_dict = self.match_price(response)
+        logging.info(price_dict)
+
         self.count += 1
+        #logging.info("ship type=" + ship_type)
+        #logging.info("element count=" + str(len(elements)))
         logging.info(response.url)
-        logging.info("element count=" + str(len(elements)))
         for element in elements:
             trip_url = self.base_url + element.xpath('.//@href').extract()[0]
 
-            #if self.limit_count == 0 :
-            #    break
-            #self.limit_count -= 1
             item = items.TripItem()
             item["url"] = trip_url
+            item["type"] = ship_type
 
             date_raw = element.xpath('.//text()').extract()[0]
-            begain, end, duration = self.parse_date(date_raw)
+            begin, end, duration = self.parse_date(date_raw)
 
-            item["begain_date"] = begain.strftime('%Y/%m/%d')
+            item["begin_date"] = begin.strftime('%Y/%m/%d')
             item["end_date"] = end.strftime('%Y/%m/%d')
             item["duration"] = duration
 
+            item["price_info"] = price_dict[date_raw] if price_dict.has_key(date_raw) else u''
+
             logging.info(trip_url)
 
-            request = Request( trip_url, self.parse_trip_page, dont_filter=True)
+            request = Request(trip_url, self.parse_trip_page, dont_filter=True)
             request.meta['item'] = item
             yield request
 
@@ -79,9 +115,9 @@ class PolarCruises(scrapy.Spider):
             temp_datetime = datetime.datetime.strptime(end_date_str, r"%b %d")
             end_date = datetime.date(int(end_year_str), temp_datetime.month, temp_datetime.day)
             duration = int(duration_str)
-            begain_date = end_date - datetime.timedelta(days=duration)
+            begin_date = end_date - datetime.timedelta(days=duration)
 
-            return begain_date, end_date, duration
+            return begin_date, end_date, duration
         except:
             logging.warn("parse date error! date=" + date_raw)
             nop = datetime.date(2000,1,1)
@@ -96,12 +132,13 @@ class PolarCruises(scrapy.Spider):
         return ''
 
     def parse_trip_page(self, response):
+        '''
+        '''
+
         item = response.meta['item']
-        #logging.info(response.url)
 
         title = response.selector.xpath('.//h1[@id="page-title"]/text()').extract()[0]
         item["title"] = title.strip()
-
 
         ship = response.selector.xpath(".//div[@class='node-teaser-title']/text()").extract()[0]
         item["ship"] = ship
