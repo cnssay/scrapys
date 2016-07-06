@@ -46,7 +46,7 @@ class PolarCruises(scrapy.Spider):
         price_dict = {}
 
         tr_elements = response.selector.xpath('.//div[@class="rates-table-wrapper"]//tbody/tr')
-        col_names = response.selector.xpath('.//table/tbody/tr/td/strong/text()').extract()
+        col_names = response.selector.xpath('.//div[@class="rates-table-wrapper"]/table[1]//div[@class="cabin-title"]/text()').extract()
 
         for tr in tr_elements:
             date_raw = tr.xpath('.//td/div[@class="rates-table-date"]/a/text()').extract()[0]
@@ -60,7 +60,7 @@ class PolarCruises(scrapy.Spider):
                 continue
             prices_info = ''
             for index in range(len(prices)):
-                prices_info += u"%s = %s \u000a" % (col_names[index], prices[index])
+                prices_info += u"%s = %s |" % (col_names[index].strip(), prices[index].strip())
 
             price_dict[date_raw] = prices_info
         return price_dict
