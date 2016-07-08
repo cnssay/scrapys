@@ -51,8 +51,8 @@ class ChangyanSpider(scrapy.Spider):
 
     start_urls = [
         'http://www.changyan.com/yunres/index.php?m=search&c=resource&a=index&ph=04&s=02&pb=01', #人教版
-#        'http://www.changyan.com/yunres/index.php?m=search&c=resource&a=index&ph=04&s=02&pb=19', #北师大版
-#        'http://www.changyan.com/yunres/index.php?m=search&c=resource&a=index&ph=04&s=02&pb=30', #沪科版
+        'http://www.changyan.com/yunres/index.php?m=search&c=resource&a=index&ph=04&s=02&pb=19', #北师大版
+        'http://www.changyan.com/yunres/index.php?m=search&c=resource&a=index&ph=04&s=02&pb=30', #沪科版
 #        'http://www.changyan.com/yunres/index.php?m=search&c=resource&a=index&ph=04&s=02&pb=34', #湘教版
 #        'http://www.changyan.com/yunres/index.php?m=search&c=resource&a=index&ph=04&s=02&pb=41', #华东师大版
 #        'http://www.changyan.com/yunres/index.php?m=search&c=resource&a=index&ph=04&s=02&pb=42', #冀教版
