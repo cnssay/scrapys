@@ -59,6 +59,8 @@ class ChangyanSpider(scrapy.Spider):
 #        'http://www.changyan.com/yunres/index.php?m=search&c=resource&a=index&ph=04&s=02&pb=44'  #浙教版
     ]
 
+    data_dir = os.path.join(os.getcwd(),'data')
+
     count = 1
     current_page = 1
 
@@ -69,14 +71,12 @@ class ChangyanSpider(scrapy.Spider):
     def parse(self, response):
 
         # parse current page's items
-        yield SplashRequest(response.url, self.parse_items, args={'wait': 0.5}, dont_filter=True)
-
-        return
+        #yield SplashRequest(response.url, self.parse_items, args={'wait': 1}, dont_filter=True)
 
         urls = response.selector.xpath("//./a[@class='list-item-book']/@href").extract()
 
         for url in urls :
-            yield SplashRequest(self.base_url+url, self.parse_items, args={'wait': 0.5}, dont_filter=True)
+            yield SplashRequest(self.base_url+url, self.parse_items, args={'wait': 1}, dont_filter=True)
 
 
     def parse_items(self, response):
@@ -84,11 +84,19 @@ class ChangyanSpider(scrapy.Spider):
         version_str = response.selector.xpath("//./a[@class='list-item-book current']/text()").extract()[0]
         logging.debug(version_str)
         '''
+        publisher = response.selector.xpath("//./a[@class='list-item-publisher current']/text()").extract()[0]
+        version = response.selector.xpath("//./a[@class='list-item-book current']/text()").extract()[0]
 
-        urls = response.selector.xpath("//./li[@class='clearfix']/h2/a/@href").extract()
+        item_nodes = response.selector.xpath("//./li[@class='clearfix']/h2/a")
 
         #parse detailed page
-        for url in urls :
+        for item_node in item_nodes :
+            resource_id = item_node.xpath("@data-value").extract()[0]
+            url = item_node.xpath("@href").extract()[0]
+
+            if self.is_analyzed(publisher, version, resource_id) :
+                #logging.debug("thie item has analyzed: %s / %s / %s " % (publisher, version, resource_id) )
+                continue
             yield SplashRequest(self.base_url+url, self.parse_detailed, args={'wait':0.5})
 
         next_page_element = response.selector.xpath(u"//./a[text()='下一页']")
@@ -101,25 +109,22 @@ class ChangyanSpider(scrapy.Spider):
         logging.info("current page counter:" + current_page_element[0])
 
         next_page = int(current_page_element[0]) + 1
-        #logging.info("next page counter:" + str(next_page))
+        logging.info("next page counter:" + str(next_page))
 
         script = u"""
         function main(splash)
-            --splash:autoload("http://libs.baidu.com/jquery/1.9.1/jquery.min.js")
-            splash:go("http://www.changyan.com/yunres/index.php?m=search&c=resource&a=index&ph=04&s=02&pb=01")
+            splash:go("%s")
             splash:wait(0.5)
-            --splash:runjs([[$(':contains("下一页")').click()]])
             splash:runjs("searchapp.search('%d')")
             splash:wait(0.5)
             return splash:html()
         end
-        """ % (next_page)
+        """ % (response.url, next_page)
 
         #logging.info(script)
 
         self.current_page += 1
-        yield SplashRequest(response.url, self.parse, args={'wait':0.5, 'lua_source':script}, endpoint='execute',dont_filter=True)
-
+        yield SplashRequest(response.url, self.parse_items, args={'wait':1, 'lua_source':script}, endpoint='execute',dont_filter=True)
 
     def parse_detailed(self,response):
 
@@ -128,7 +133,7 @@ class ChangyanSpider(scrapy.Spider):
         item["version"] = response.selector.xpath("//./div[@class='bread_title fl']/a[last()]/text()").extract()[0]
         item["publisher"] = response.selector.xpath("//./div[@class='bread_title fl']/a[last()-1]/text()").extract()[0]
         item["title"] = response.selector.xpath("//./div[@class='bread_title fl']/span/text()").extract()[0]
-
+        item["resource_id"] = response.selector.xpath("//./input[@id='resid']/@value").extract()[0]
         resources_urls = []
         while True:
             resources_urls = response.selector.xpath("//./a[@class='zy_load']/@data_url").extract()
@@ -163,10 +168,18 @@ class ChangyanSpider(scrapy.Spider):
                 break
 
             logging.warning("unknown detailed page:" + response.url)
-            break
+            return
 
         item["resource_link"] = resources_urls
         return item
+
+    def is_analyzed(self, publisher, version, resource_id):
+        dir_path = os.path.join(self.data_dir, publisher, version)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+
+        json_path = os.path.join(dir_path, resource_id +'.json')
+        return os.path.isfile(json_path)
 
 
 if __name__ == '__main__':

@@ -14,5 +14,5 @@ class TeachingResourceItem(scrapy.Item):
     resource_link = scrapy.Field()
     version = scrapy.Field()
     publisher = scrapy.Field()
-
+    resource_id = scrapy.Field()
     pass

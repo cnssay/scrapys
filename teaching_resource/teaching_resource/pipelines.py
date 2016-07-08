@@ -26,7 +26,7 @@ class TeachingResourcePipeline(object):
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
-        json_path = os.path.join(dir_path, item["title"]+'.json')
+        json_path = os.path.join(dir_path, item["resource_id"]+'.json')
         logging.debug(json_path)
 
         line = json.dumps(dict(item)) + ',\n'
